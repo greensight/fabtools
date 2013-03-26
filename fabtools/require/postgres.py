@@ -4,9 +4,10 @@ PostgreSQL users and databases
 """
 from __future__ import with_statement
 
-from fabric.api import cd, hide, run, settings
+from fabric.api import cd, hide, run, env, settings
 from fabtools.files import is_file, watch
 from fabtools.postgres import (
+    _show,
     create_database,
     create_user,
     database_exists,
@@ -15,6 +16,7 @@ from fabtools.postgres import (
 from fabtools.require.deb import package
 from fabtools.require.service import started, restarted
 from fabtools.require.system import locale as require_locale
+from fabtools.require.files import link, configs as _configs
 
 
 def _service_name(version=None):
@@ -94,3 +96,13 @@ def database(name, owner, template='template0', encoding='UTF8',
 
         create_database(name, owner, template=template, encoding=encoding,
                         locale=locale)
+
+
+def configs(filenames):
+
+    def callback():
+        link('%s%s' % (env.cwd, 'postgresql.conf'), _show('config_file'), use_sudo=True)
+        link('%s%s' % (env.cwd, 'pg_hba.conf'), _show('hba_file'), use_sudo=True)
+        restarted(_service_name())
+
+    _configs(filenames, callback)

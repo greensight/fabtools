@@ -13,11 +13,11 @@ import os
 from tempfile import mkstemp
 from urlparse import urlparse
 
-from fabric.api import hide, put, run, settings
+from fabric.api import env, hide, put, run, settings
 
-from fabtools.files import is_file, is_dir, md5sum
+import fabtools
+from fabtools.files import is_file, is_dir, is_link, remove, observe, md5sum
 from fabtools.utils import run_as_root
-import fabtools.files
 
 
 BLOCKSIZE = 2 ** 20  # 1MB
@@ -147,7 +147,16 @@ def file(path=None, contents=None, source=None, url=None, md5=None,
 
     # Ensure correct mode
     if mode and fabtools.files.mode(path, use_sudo) != mode:
-        func('chmod %(mode)s "%(path)s"' % locals())
+            func('chmod %(mode)s "%(path)s"' % locals())
+
+
+def link(source, destination, use_sudo=False):
+    """
+    Make a symlink
+    """
+    func = use_sudo and run_as_root or run
+    remove(destination, use_sudo=use_sudo)
+    func('ln -s %s %s' % (source, destination))
 
 
 def template_file(path=None, template_contents=None, template_source=None, context=None, **kwargs):
@@ -162,3 +171,20 @@ def template_file(path=None, template_contents=None, template_source=None, conte
         context = {}
 
     file(path=path, contents=template_contents % context, **kwargs)
+
+
+def config(filename, *args, **kw):
+    configs([filename], *args, **kw)
+
+
+def configs(filenames, callback=None, template_str='%s.template', **kw):
+    configs_changed = False
+    for filename in filenames:
+        template_filename = template_str % filename
+        with observe(template_filename) as template:
+            if template.changed:
+                from jinja2 import Template
+                configs_changed = True
+                file(path=filename, contents=Template(template.data).render(env), **kw)
+    if configs_changed and callback is not None:
+        callback()
