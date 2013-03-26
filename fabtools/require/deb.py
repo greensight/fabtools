@@ -16,7 +16,7 @@ from fabtools.deb import (
     uninstall,
     update_index,
 )
-from fabtools.files import is_file, watch
+from fabtools.files import is_file, watch, observe
 from fabtools.system import distrib_codename
 from fabtools.utils import run_as_root
 
@@ -101,6 +101,13 @@ def packages(pkg_list, update=False):
     pkg_list = [pkg for pkg in pkg_list if not is_installed(pkg)]
     if pkg_list:
         install(pkg_list, update)
+
+
+def config(filename):
+    with observe(filename) as pkg_config:
+        if pkg_config.changed:
+            pkg_list = pkg_config.data.split('\n')
+            packages(pkg_list, update=True)
 
 
 def nopackage(pkg_name):

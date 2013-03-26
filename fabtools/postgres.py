@@ -7,6 +7,7 @@ This module provides tools for creating PostgreSQL users and databases.
 """
 from __future__ import with_statement
 
+import re
 from fabric.api import cd, hide, settings, sudo
 
 
@@ -16,6 +17,15 @@ def _run_as_pg(command):
     """
     with cd('/var/lib/postgresql'):
         return sudo('sudo -u postgres %s' % command)
+
+
+def _show(name):
+    """
+    Show PostgreSQL setting
+    """
+    regex = re.compile("\-+.*\n\s*([^\s]*)\s*\n.*", re.MULTILINE)
+    with settings(hide('running', 'stdout', 'stderr', 'warnings'), warn_only=True):
+        return regex.findall(_run_as_pg('psql -c "SHOW %s"' % name))[0]
 
 
 def user_exists(name):

@@ -6,11 +6,12 @@ from __future__ import with_statement
 
 import os
 
-from fabric.api import abort, hide, run, settings, sudo, warn
-from fabric.contrib.files import upload_template as _upload_template
-from fabric.contrib.files import exists
+from cStringIO import StringIO
+from fabric.api import abort, hide, run, settings, sudo, warn, get, put, quiet, env
+from fabric.contrib.files import exists, upload_template as _upload_template
 
 from fabtools.utils import run_as_root
+# from fabtools import require
 
 
 def is_file(path, use_sudo=False):
@@ -91,6 +92,15 @@ def mode(path, use_sudo=False):
             return result
 
 
+def remove(path, use_sudo=False):
+    """
+    Remove file if exists
+    """
+    func = use_sudo and run_as_root or run
+    if exists(path):
+        func('rm %s' % (path,))
+
+
 def upload_template(filename, template, context=None, use_sudo=False,
                   user="root", mkdir=False, chown=False):
     """
@@ -134,6 +144,17 @@ def md5sum(filename, use_sudo=False):
         _md5sum = None
 
     return _md5sum
+
+
+def read(filename):
+    f = StringIO()
+    with quiet():
+        get(filename, f)
+    return f.getvalue()
+
+
+def write(filename, content):
+    put(StringIO(content), filename, use_sudo=True)
 
 
 class watch(object):
@@ -203,3 +224,57 @@ class watch(object):
                 break
         if self.changed and self.callback:
             self.callback()
+
+
+class observe(object):
+    """
+    Context manager to watch for changes to the contents of some files.
+
+    The *filenames* argument can be either a string (single filename)
+    or a list (multiple filenames).
+
+    You can read the *changed* attribute at the end of the block to
+    check if the contents of any of the watched files has changed.
+
+    You can also provide a *callback* that will be called at the end of
+    the block if the contents of any of the watched files has changed.
+
+    Example using an explicit check::
+
+        from fabric.contrib.files import comment, uncomment
+
+        from fabtools.files import watch
+        from fabtools.services import restart
+
+        # Edit configuration file
+        with watch('/etc/daemon.conf') as config:
+            uncomment('/etc/daemon.conf', 'someoption')
+            comment('/etc/daemon.conf', 'otheroption')
+
+        # Restart daemon if needed
+        if config.changed:
+            restart('daemon')
+
+    """
+
+    def __init__(self, filename, use_sudo=True):
+        self.filename = filename
+        self.checksum_filename = '%s.checksum' % self.filename
+        self.use_sudo = use_sudo
+        self.changed = False
+
+    def __enter__(self):
+        self.checksum = read(self.checksum_filename)
+        self.actual_checksum = md5sum(self.filename, self.use_sudo)
+        if self.checksum != self.actual_checksum:
+            self.changed = True
+        return self
+
+    def __exit__(self, error_type, error_value, traceback):
+        if error_type is None:
+            if self.changed:
+                write(self.checksum_filename, self.actual_checksum)
+
+    @property
+    def data(self):
+        return read(self.filename)
