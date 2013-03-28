@@ -103,8 +103,8 @@ def packages(pkg_list, update=False):
         install(pkg_list, update)
 
 
-def config(filename):
-    with observe(filename) as pkg_config:
+def config(filename, refresh=False, **kw):
+    with observe(filename, refresh=refresh) as pkg_config:
         if pkg_config.changed:
             pkg_list = pkg_config.data.split('\n')
             packages(pkg_list, update=True)

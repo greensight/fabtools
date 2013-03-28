@@ -177,11 +177,11 @@ def config(filename, *args, **kw):
     configs([filename], *args, **kw)
 
 
-def configs(filenames, callback=None, template_str='%s.template', **kw):
+def configs(filenames, callback=None, template_str='%s.template', refresh=False, **kw):
     configs_changed = False
     for filename in filenames:
         template_filename = template_str % filename
-        with observe(template_filename) as template:
+        with observe(template_filename, refresh=refresh) as template:
             if template.changed:
                 from jinja2 import Template
                 configs_changed = True

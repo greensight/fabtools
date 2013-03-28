@@ -87,22 +87,21 @@ def database(name, owner, template='template0', encoding='UTF8',
         require.postgres.database('myapp', owner='dbuser')
 
     """
+    print name
     if not database_exists(name):
-
-        with watch('/etc/locale.gen') as locales:
-            require_locale(locale)
-        if locales.changed:
+        locales_changed = require_locale(locale)
+        if locales_changed:
             restarted(_service_name())
 
         create_database(name, owner, template=template, encoding=encoding,
                         locale=locale)
 
 
-def configs(filenames):
+def configs(filenames, **kw):
 
     def callback():
         link('%s%s' % (env.cwd, 'postgresql.conf'), _show('config_file'), use_sudo=True)
         link('%s%s' % (env.cwd, 'pg_hba.conf'), _show('hba_file'), use_sudo=True)
         restarted(_service_name())
 
-    _configs(filenames, callback)
+    _configs(filenames, callback, **kw)

@@ -48,33 +48,41 @@ def hostname(name):
         set_hostname(name)
 
 
-def locales(names):
+def locales(names, callback=None):
     """
     Require the list of locales to be available.
     """
 
-    config_file = '/var/lib/locales/supported.d/local'
+    supported = dict(supported_locales())
+    output = run_as_root('locale-gen %s' % ' '.join([n for n in names if n in supported]))
+    locales_changed = 'done' in output
+    if locales_changed and callback is not None:
+        callback()
+    return locales_changed
 
-    if not is_file(config_file):
-        config_file = '/etc/locale.gen'
+    # config_file = '/var/lib/locales/supported.d/local'
 
-    # Regenerate locales if config file changes
-    with watch(config_file, use_sudo=True) as config:
+    # if not is_file(config_file, use_sudo=True):
+    #     config_file = '/etc/locale.gen'
 
-        # Add valid locale names to the config file
-        supported = dict(supported_locales())
-        for name in names:
-            if name in supported:
-                charset = supported[name]
-                locale = "%s %s" % (name, charset)
-                with shell_env():
-                    uncomment(config_file, escape(locale), use_sudo=True)
-                    append(config_file, locale, use_sudo=True)
-            else:
-                warn('Unsupported locale name "%s"' % name)
+    # # Regenerate locales if config file changes
+    # with watch(config_file, use_sudo=True) as config:
 
-    if config.changed:
-        run_as_root('dpkg-reconfigure --frontend=noninteractive locales')
+    #     # Add valid locale names to the config file
+    #     supported = dict(supported_locales())
+    #     for name in names:
+    #         if name in supported:
+    #             charset = supported[name]
+    #             locale = "%s %s" % (name, charset)
+    #             with shell_env():
+    #                 print locale
+    #                 uncomment(config_file, escape(locale), use_sudo=True)
+    #                 append(config_file, locale, use_sudo=True)
+    #         else:
+    #             warn('Unsupported locale name "%s"' % name)
+
+    # if config.changed:
+    #     run_as_root('dpkg-reconfigure --frontend=noninteractive locales')
 
 
 def locale(name):

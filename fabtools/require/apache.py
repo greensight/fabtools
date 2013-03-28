@@ -12,7 +12,7 @@ def _service_name(version=None):
     return 'apache2'
 
 
-def configs(filenames):
+def configs(filenames, **kw):
 
     def callback():
         config_file_path = '%s%s' % (env.cwd, 'site.conf')
@@ -26,4 +26,4 @@ def configs(filenames):
         'log_dir': APACHE_LOG_DIR,
         'django_dir': DJANGO_DIR
     })
-    _configs(filenames, callback)
+    _configs(filenames, callback, **kw)

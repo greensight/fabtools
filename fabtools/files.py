@@ -257,16 +257,17 @@ class observe(object):
 
     """
 
-    def __init__(self, filename, use_sudo=True):
+    def __init__(self, filename, use_sudo=True, refresh=False):
         self.filename = filename
-        self.checksum_filename = '%s.checksum' % self.filename
         self.use_sudo = use_sudo
+        self.refresh = refresh
+        self.checksum_filename = '%s.checksum' % self.filename
         self.changed = False
 
     def __enter__(self):
         self.checksum = read(self.checksum_filename)
         self.actual_checksum = md5sum(self.filename, self.use_sudo)
-        if self.checksum != self.actual_checksum:
+        if self.checksum != self.actual_checksum or self.refresh:
             self.changed = True
         return self
 
