@@ -4,10 +4,12 @@ PostgreSQL users and databases
 """
 from __future__ import with_statement
 
-from fabric.api import cd, hide, run, env, settings
-from fabtools.files import is_file, watch
+from fabric.api import quiet
+from functools import partial
+from fabric.api import cd, hide, run, settings
+from fabtools.files import is_file
+from fabtools.utils import run_as_root
 from fabtools.postgres import (
-    _show,
     create_database,
     create_user,
     database_exists,
@@ -16,7 +18,7 @@ from fabtools.postgres import (
 from fabtools.require.deb import package
 from fabtools.require.service import started, restarted
 from fabtools.require.system import locale as require_locale
-from fabtools.require.files import link, configs as _configs
+from fabtools.require.files import configs as _configs
 
 
 def _service_name(version=None):
@@ -30,6 +32,15 @@ def _service_name(version=None):
     with cd('/etc/init.d'):
         with settings(hide('running', 'stdout')):
             return run('ls postgresql-*').splitlines()[0]
+
+
+def _config_dir():
+    with quiet():
+        run_as_root('updatedb')
+        result = run_as_root('locate postgresql.conf')
+        if result:
+            return result.split('\n')[0].rsplit('/', 1)[0]
+    return None
 
 
 def server(version=None):
@@ -87,7 +98,6 @@ def database(name, owner, template='template0', encoding='UTF8',
         require.postgres.database('myapp', owner='dbuser')
 
     """
-    print name
     if not database_exists(name):
         locales_changed = require_locale(locale)
         if locales_changed:
@@ -98,10 +108,16 @@ def database(name, owner, template='template0', encoding='UTF8',
 
 
 def configs(filenames, **kw):
-
-    def callback():
-        link('%s%s' % (env.cwd, 'postgresql.conf'), _show('config_file'), use_sudo=True)
-        link('%s%s' % (env.cwd, 'pg_hba.conf'), _show('hba_file'), use_sudo=True)
-        restarted(_service_name())
-
-    _configs(filenames, callback, **kw)
+    # def callback():
+    #     link('%s%s' % (env.cwd, 'postgresql.conf'), _show('config_file'), use_sudo=True)
+    #     link('%s%s' % (env.cwd, 'pg_hba.conf'), _show('hba_file'), use_sudo=True)
+    #     file(_show('config_file'), source='%s%s' % (env.cwd, 'postgresql.conf'), use_sudo=True)
+    #     file(_show('hba_file'), source='%s%s' % (env.cwd, 'pg_hba.conf'), use_sudo=True)
+    #     restarted(_service_name())
+    _configs(
+        filenames,
+        callback=partial(restarted, _service_name()),
+        config_dir=_config_dir(),
+        use_sudo=True,
+        **kw
+    )

@@ -10,13 +10,15 @@ from __future__ import with_statement
 
 import hashlib
 import os
+from md5 import md5
 from tempfile import mkstemp
 from urlparse import urlparse
 
 from fabric.api import env, hide, put, run, settings
+from fabric.contrib.files import exists
 
 import fabtools
-from fabtools.files import is_file, is_dir, is_link, remove, observe, md5sum
+from fabtools.files import is_file, is_dir, read, remove, watch, md5sum
 from fabtools.utils import run_as_root
 
 
@@ -150,12 +152,13 @@ def file(path=None, contents=None, source=None, url=None, md5=None,
             func('chmod %(mode)s "%(path)s"' % locals())
 
 
-def link(source, destination, use_sudo=False):
+def link(source, destination, use_sudo=False, remove_existed=True):
     """
     Make a symlink
     """
     func = use_sudo and run_as_root or run
-    remove(destination, use_sudo=use_sudo)
+    if exists(destination) and remove_existed:
+        remove(destination, use_sudo=True)
     func('ln -s %s %s' % (source, destination))
 
 
@@ -177,14 +180,14 @@ def config(filename, *args, **kw):
     configs([filename], *args, **kw)
 
 
-def configs(filenames, callback=None, template_str='%s.template', refresh=False, **kw):
-    configs_changed = False
-    for filename in filenames:
-        template_filename = template_str % filename
-        with observe(template_filename, refresh=refresh) as template:
-            if template.changed:
-                from jinja2 import Template
-                configs_changed = True
-                file(path=filename, contents=Template(template.data).render(env), **kw)
-    if configs_changed and callback is not None:
-        callback()
+def configs(filenames, callback=None, **kw):
+    from jinja2 import Template
+    template_dir = kw.pop('template_dir', env.cwd.rstrip('/'))
+    config_dir = kw.pop('config_dir', env.cwd.rstrip('/'))
+    config_paths = ['%s/%s' % (config_dir, n) for n in filenames]
+    with watch(config_paths, callback=callback, use_sudo=True) as configs:
+        for config_path, filename in zip(config_paths, filenames):
+            template_path = '%s/%s.template' % (template_dir, filename)
+            config_data = Template(read(template_path)).render(env)
+            if md5(config_data).hexdigest != configs.digest[config_path]:
+                file(path=config_path, contents=config_data, **kw)

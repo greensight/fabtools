@@ -7,7 +7,7 @@ from __future__ import with_statement
 import os
 
 from cStringIO import StringIO
-from fabric.api import abort, hide, run, settings, sudo, warn, get, put, quiet, env
+from fabric.api import abort, hide, run, settings, sudo, warn, get, put, quiet
 from fabric.contrib.files import exists, upload_template as _upload_template
 
 from fabtools.utils import run_as_root
@@ -20,7 +20,7 @@ def is_file(path, use_sudo=False):
     """
     func = use_sudo and run_as_root or run
     with settings(hide('running', 'warnings'), warn_only=True):
-        return func('[ -f "%(path)s" ]' % locals()).succeeded
+        return func('[ -f "`eval echo %(path)s`" ]' % locals()).succeeded
 
 
 def is_dir(path, use_sudo=False):
@@ -29,7 +29,7 @@ def is_dir(path, use_sudo=False):
     """
     func = use_sudo and run_as_root or run
     with settings(hide('running', 'warnings'), warn_only=True):
-        return func('[ -d "%(path)s" ]' % locals()).succeeded
+        return func('[ -d "`eval echo %(path)s`" ]' % locals()).succeeded
 
 
 def is_link(path, use_sudo=False):
@@ -98,7 +98,7 @@ def remove(path, use_sudo=False):
     """
     func = use_sudo and run_as_root or run
     if exists(path):
-        func('rm %s' % (path,))
+        func('rm -rf %s' % (path,))
 
 
 def upload_template(filename, template, context=None, use_sudo=False,
@@ -146,10 +146,10 @@ def md5sum(filename, use_sudo=False):
     return _md5sum
 
 
-def read(filename):
+def read(filename, **kw):
     f = StringIO()
     with quiet():
-        get(filename, f)
+        get(filename, f, **kw)
     return f.getvalue()
 
 
@@ -214,7 +214,8 @@ class watch(object):
     def __enter__(self):
         with settings(hide('warnings')):
             for filename in self.filenames:
-                self.digest[filename] = md5sum(filename, self.use_sudo)
+                with settings(hide('stderr')):
+                    self.digest[filename] = md5sum(filename, self.use_sudo)
         return self
 
     def __exit__(self, type, value, tb):
@@ -224,58 +225,3 @@ class watch(object):
                 break
         if self.changed and self.callback:
             self.callback()
-
-
-class observe(object):
-    """
-    Context manager to watch for changes to the contents of some files.
-
-    The *filenames* argument can be either a string (single filename)
-    or a list (multiple filenames).
-
-    You can read the *changed* attribute at the end of the block to
-    check if the contents of any of the watched files has changed.
-
-    You can also provide a *callback* that will be called at the end of
-    the block if the contents of any of the watched files has changed.
-
-    Example using an explicit check::
-
-        from fabric.contrib.files import comment, uncomment
-
-        from fabtools.files import watch
-        from fabtools.services import restart
-
-        # Edit configuration file
-        with watch('/etc/daemon.conf') as config:
-            uncomment('/etc/daemon.conf', 'someoption')
-            comment('/etc/daemon.conf', 'otheroption')
-
-        # Restart daemon if needed
-        if config.changed:
-            restart('daemon')
-
-    """
-
-    def __init__(self, filename, use_sudo=True, refresh=False):
-        self.filename = filename
-        self.use_sudo = use_sudo
-        self.refresh = refresh
-        self.checksum_filename = '%s.checksum' % self.filename
-        self.changed = False
-
-    def __enter__(self):
-        self.checksum = read(self.checksum_filename)
-        self.actual_checksum = md5sum(self.filename, self.use_sudo)
-        if self.checksum != self.actual_checksum or self.refresh:
-            self.changed = True
-        return self
-
-    def __exit__(self, error_type, error_value, traceback):
-        if error_type is None:
-            if self.changed:
-                write(self.checksum_filename, self.actual_checksum)
-
-    @property
-    def data(self):
-        return read(self.filename)
