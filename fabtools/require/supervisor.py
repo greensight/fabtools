@@ -15,6 +15,14 @@ from fabtools.supervisor import update_config, process_status, start_process
 from fabtools.system import distrib_family
 
 
+def _service_name():
+    return 'supervisor'
+
+
+def _config_dir():
+    return '/etc/supervisor/conf.d'
+
+
 def process(name, **kwargs):
     """
     Require a supervisor process to be running.
@@ -87,3 +95,21 @@ def process(name, **kwargs):
     # Start the process if needed
     if process_status(name) == 'STOPPED':
         start_process(name)
+
+
+def config(filename, *args, **kw):
+    configs([filename], *args, **kw)
+
+
+def configs(filenames, *args, **kw):
+    from functools import partial
+    from fabtools.require.files import configs as _configs
+    from fabtools.utils import run_as_root
+
+    _configs(
+        filenames,
+        callback=partial(run_as_root, 'supervisorctl reload'),
+        config_dir=_config_dir(),
+        use_sudo=True,
+        **kw
+    )

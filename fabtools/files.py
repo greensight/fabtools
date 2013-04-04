@@ -11,7 +11,6 @@ from fabric.api import abort, hide, run, settings, sudo, warn, get, put, quiet
 from fabric.contrib.files import exists, upload_template as _upload_template
 
 from fabtools.utils import run_as_root
-# from fabtools import require
 
 
 def is_file(path, use_sudo=False):
