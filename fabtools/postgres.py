@@ -100,20 +100,6 @@ def create_database(name, owner, template='template0', encoding='UTF8',
                   --lc-collate=%(locale)s %(name)s''' % locals())
 
 
-def drop_database(name):
-    _run_as_pg('''dropdb %(name)s''' % locals())
-
-
-def export_database(name, filename=None):
-    _run_as_pg("""pg_dump %s -f %s""" % (
-        name, filename or datetime.datetime.now().strftime('%Y-%m-%d_%H:%M_' + name + '.sql')
-    ))
-
-
-def import_database(name, filename):
-    _run_as_pg("""psql -d %(name)s -a -f %(filename)s""" % locals())
-
-
 def create_schema(name, database, owner=None):
     """
     Create a schema within a database.
