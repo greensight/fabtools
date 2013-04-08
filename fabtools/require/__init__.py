@@ -1,7 +1,6 @@
 # Keep imports sorted alphabetically
 import fabtools.require.apache
 import fabtools.require.deb
-import fabtools.require.django
 import fabtools.require.files
 import fabtools.require.git
 import fabtools.require.mysql
