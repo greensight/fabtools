@@ -95,21 +95,3 @@ def process(name, **kwargs):
     # Start the process if needed
     if process_status(name) == 'STOPPED':
         start_process(name)
-
-
-def config(filename, *args, **kw):
-    configs([filename], *args, **kw)
-
-
-def configs(filenames, *args, **kw):
-    from functools import partial
-    from fabtools.require.files import configs as _configs
-    from fabtools.utils import run_as_root
-
-    _configs(
-        filenames,
-        callback=partial(run_as_root, 'supervisorctl reload'),
-        config_dir=_config_dir(),
-        use_sudo=True,
-        **kw
-    )

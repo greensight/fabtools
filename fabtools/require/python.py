@@ -13,7 +13,7 @@ import posixpath
 
 from fabric.api import run, sudo
 
-from fabtools.files import is_file, read
+from fabtools.files import is_file
 from fabtools.python import (
     install,
     install_pip,
@@ -103,10 +103,6 @@ def packages(pkg_list, **kwargs):
     pkg_list = [pkg for pkg in pkg_list if not is_installed(pkg)]
     if pkg_list:
         install(pkg_list, **kwargs)
-
-
-def config(filename, **kw):
-    requirements(filename, quiet=True, use_sudo=True, **kw)
 
 
 def requirements(filename, **kwargs):

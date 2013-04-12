@@ -1,5 +1,4 @@
 # Keep imports sorted alphabetically
-import fabtools.require.apache
 import fabtools.require.deb
 import fabtools.require.files
 import fabtools.require.git
@@ -19,14 +18,11 @@ import fabtools.require.shorewall
 import fabtools.require.supervisor
 import fabtools.require.system
 import fabtools.require.users
-import fabtools.require.web
 
 
 from fabtools.require.files import (
     directory,
     file,
-    config,
-    configs
 )
 from fabtools.require.users import (
     user,
